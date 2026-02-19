@@ -4,6 +4,23 @@ require "stringex"
 require 'net/http'
 require 'json'
 
+# Fetch JSON from a URL with timeout and error handling.
+def fetch_json(url)
+  uri = URI(url)
+  response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https',
+                             open_timeout: 10, read_timeout: 30) do |http|
+    http.get(uri.request_uri)
+  end
+  unless response.is_a?(Net::HTTPSuccess)
+    raise "HTTP #{response.code} #{response.message} fetching #{url}"
+  end
+  JSON.parse(response.body)
+rescue SocketError, Errno::ECONNREFUSED, Timeout::Error => e
+  raise "Network error fetching #{url}: #{e.message}"
+rescue JSON::ParserError => e
+  raise "Failed to parse JSON from #{url}: #{e.message}"
+end
+
 ## -- Misc Configs -- ##
 public_dir      = "public/"   # compiled site directory
 source_dir      = "source"    # source file directory
@@ -85,45 +102,36 @@ end
 
 desc "Download data from analytics.home-assistant.io"
 task :analytics_data do
-  uri = URI('https://analytics.home-assistant.io/data.json')
-
-  remote_data = JSON.parse(Net::HTTP.get(uri))
-
+  remote_data = fetch_json('https://analytics.home-assistant.io/data.json')
   File.open("#{source_dir}/_data/analytics_data.json", "w") do |file|
     file.write(JSON.generate(remote_data['current']))
   end
+  puts "## analytics_data: OK"
 end
 
 desc "Download data from alerts.home-assistant.io"
 task :alerts_data do
-  uri = URI('https://alerts.home-assistant.io/alerts.json')
-
-  remote_data = JSON.parse(Net::HTTP.get(uri))
-
+  remote_data = fetch_json('https://alerts.home-assistant.io/alerts.json')
   File.open("#{source_dir}/_data/alerts_data.json", "w") do |file|
     file.write(JSON.generate(remote_data))
   end
+  puts "## alerts_data: OK"
 end
-
 
 desc "Download version data from version.home-assistant.io"
 task :version_data do
-  uri = URI('https://version.home-assistant.io/stable.json')
-
-  remote_data = JSON.parse(Net::HTTP.get(uri))
-
+  remote_data = fetch_json('https://version.home-assistant.io/stable.json')
   File.open("#{source_dir}/_data/version_data.json", "w") do |file|
     file.write(JSON.generate(remote_data))
   end
+  puts "## version_data: OK"
 end
 
 desc "Download data from the blueprint exchange @ community.home-assistant.io"
 task :blueprint_exchange_data do
-  uri = URI('https://community.home-assistant.io/c/blueprints-exchange/53/l/top.json?period=all')
-
-  remote_data = JSON.parse(Net::HTTP.get(uri))
-
+  remote_data = fetch_json('https://community.home-assistant.io/c/blueprints-exchange/53/l/top.json?period=all')
   File.open("#{source_dir}/_data/blueprint_exchange_data.json", "w") do |file|
     file.write(JSON.generate(remote_data['topic_list']['topics']))
   end
+  puts "## blueprint_exchange_data: OK"
 end

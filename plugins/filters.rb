@@ -85,8 +85,8 @@ module Jekyll
 
         begin
           gem_ver = Gem::Version.new(version).to_s
-        rescue
-          raise ArgumentError, "Error when parsing ha_release #{version} in #{v.path}."
+        rescue ArgumentError => e
+          raise ArgumentError, "Error when parsing ha_release '#{version}': #{e.message}"
         end
 
         { "label" => version, "new_components_count" => v[1].count, "sort_key" => gem_ver }

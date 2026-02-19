@@ -26,7 +26,11 @@ module Jekyll
 
     def render(context)
       contents = super(context)
-      vars = SafeYAML.load(contents)
+      begin
+        vars = SafeYAML.load(contents)
+      rescue Psych::SyntaxError => e
+        raise ArgumentError, "Failed to parse tabbed_block YAML: #{e.message}"
+      end
 
       site = context.registers[:site]
       converter = site.find_converter_instance(::Jekyll::Converters::Markdown)

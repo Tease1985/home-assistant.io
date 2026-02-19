@@ -55,7 +55,11 @@ module Jekyll
       site = context.registers[:site]
       converter = site.find_converter_instance(::Jekyll::Converters::Markdown)
 
-      vars = SafeYAML.load(contents)
+      begin
+        vars = SafeYAML.load(contents)
+      rescue Psych::SyntaxError => e
+        raise ArgumentError, "Failed to parse configuration_basic YAML in '#{component}': #{e.message}"
+      end
 
       <<~MARKUP
         <div class="config-vars basic">
