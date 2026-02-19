@@ -1,6 +1,5 @@
 module Jekyll
   class DetailsBlock < Liquid::Block
-
     def initialize(tag_name, title, tokens)
       super
       @title = title
@@ -9,17 +8,15 @@ module Jekyll
 
     def render(context)
       contents = super(context)
-      if @title.nil? || @title.empty? then
-        title = "More info"
-      else
-        title = @title
-      end
+      title = if @title.nil? || @title.empty?
+                "More info"
+              else
+                @title
+              end
       title = title.to_s.delete("\"")
 
       idx = context["details_idx"]
-      if idx.nil? then
-        idx = 0
-      end
+      idx = 0 if idx.nil?
       context["details_idx"] = idx + 1
 
       <<~MARKUP

@@ -9,29 +9,32 @@ module Jekyll
       key.downcase.strip.gsub(' ', '-').gsub(/[^\w\-]/, '')
     end
 
-    def render_config_vars(vars:, component:, platform:, converter:, classes: nil, parent_type: nil)
-      result = Array.new
+    def render_config_vars(vars:, component:, platform:, converter:, classes: nil, _parent_type: nil)
+      result = []
       result << "<div class='#{classes}'>"
 
       result << vars.map do |key, attr|
-        markup = Array.new
-        markup << "<div class='config-vars-item'><div class='config-vars-label'><a name='#{slug(key)}' class='title-link' href='\##{slug(key)}'></a> <span class='config-vars-label-name'>#{key}</span></div><div class='config-vars-description-and-children'>"
+        markup = []
+        markup << "<div class='config-vars-item'><div class='config-vars-label'>" \
+                  "<a name='#{slug(key)}' class='title-link' href='##{slug(key)}'></a> " \
+                  "<span class='config-vars-label-name'>#{key}</span></div>" \
+                  "<div class='config-vars-description-and-children'>"
 
-        if attr.key? 'description'
-          markup << "<span class='config-vars-description'>#{converter.convert(attr['description'].to_s)}</span>"
-        else
-          # Description is missing
-          raise ArgumentError, "Configuration key '#{key}' is missing a description."
-        end
+        raise ArgumentError, "Configuration key '#{key}' is missing a description." unless attr.key? 'description'
+
+        markup << "<span class='config-vars-description'>#{converter.convert(attr['description'].to_s)}</span>"
+
+        # Description is missing
 
         markup << "</div>"
 
         # Check for nested configuration variables
         if attr.key? 'keys'
           markup << render_config_vars(
-            vars: attr['keys'], component: component,
-            platform: platform, converter: converter,
-            classes: 'nested', parent_type: attr['type'])
+            vars: attr['keys'], component:,
+            platform:, converter:,
+            classes: 'nested', parent_type: attr['type']
+          )
         end
 
         markup << "</div>"
@@ -42,7 +45,7 @@ module Jekyll
     end
 
     def render(context)
-      if @component.nil? and @platform.nil?
+      if @component.nil? && @platform.nil?
         page = context.environments.first['page']
         @component, @platform = page['slug'].split('.', 2)
       end
@@ -64,10 +67,10 @@ module Jekyll
       <<~MARKUP
         <div class="config-vars basic">
           #{render_config_vars(
-            vars: vars,
-            component: component,
-            platform: platform,
-            converter: converter
+            vars:,
+            component:,
+            platform:,
+            converter:
           )}
         </div>
       MARKUP

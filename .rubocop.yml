@@ -32,7 +32,20 @@ Metrics/PerceivedComplexity:
   Enabled: false
 
 Layout/LineLength:
-  Max: 150
+  Max: 200
+
+# Jekyll plugin initialize methods intentionally don't call super
+# (the parent Jekyll::Page signature differs)
+Lint/MissingSuper:
+  Enabled: false
+
+# Block chains over multiple .end.sort_by{}.map{} calls are idiomatic Ruby
+Style/MultilineBlockChain:
+  Enabled: false
+
+# Some plugin methods require 6 keyword args by design (vars/component/platform/converter/classes/parent_type)
+Metrics/ParameterLists:
+  Max: 6
 
 # Enforce meaningful cops
 Security/Eval:

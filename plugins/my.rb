@@ -3,22 +3,19 @@ require 'uri'
 module Jekyll
   module HomeAssistant
     class My < Liquid::Tag
-
       def initialize(tag_name, args, tokens)
         super
-        if args.strip =~ SYNTAX
-          @redirect = Regexp.last_match(1).downcase
-          @options = Regexp.last_match(2)
-        else
-          raise SyntaxError, <<~MSG
-            Syntax error in tag 'my' while parsing the following options:
+        raise SyntaxError, <<~MSG unless args.strip =~ SYNTAX
+          Syntax error in tag 'my' while parsing the following options:
 
-            #{args}
+          #{args}
 
-            Valid syntax:
-              {% my <redirect> [title="Link name"] [badge] [icon[="icon-puzzle-piece"]] [addon="core_ssh"] [blueprint_url="http://example.com/blueprint.yaml"] [domain="hue"] [brand="philips"] [service="light.turn_on"] %}
-          MSG
-        end
+          Valid syntax:
+            {% my <redirect> [title="Link name"] [badge] [icon[="icon-puzzle-piece"]] [addon="core_ssh"] [blueprint_url="http://example.com/blueprint.yaml"] [domain="hue"] [brand="philips"] [service="light.turn_on"] %}
+        MSG
+
+        @redirect = Regexp.last_match(1).downcase
+        @options = Regexp.last_match(2)
       end
 
       def render(context)
@@ -26,7 +23,7 @@ module Jekyll
         options = parse_options(@options, context)
 
         # Base URI
-        uri =  URI.join("https://my.home-assistant.io/redirect/", @redirect)
+        uri = URI.join("https://my.home-assistant.io/redirect/", @redirect)
 
         # Build query string
         query = []
@@ -36,17 +33,16 @@ module Jekyll
         query += [["brand", options[:brand]]] if options.include? :brand
         query += [["repository_url", options[:repository_url]]] if options.include? :repository_url
         query += [["service", options[:service]]] if options.include? :service
-        unless query.empty?
-            uri.query = URI.encode_www_form(query)
-        end
+        uri.query = URI.encode_www_form(query) unless query.empty?
 
         if options[:badge]
           raise ArgumentError, "Badges cannot have custom titles" if options[:title]
-          "<a href='#{uri}' class='my badge' target='_blank'>"\
-          "<img src='https://my.home-assistant.io/badges/#{@redirect}.svg' />"\
-          "</a>"
+
+          "<a href='#{uri}' class='my badge' target='_blank'>" \
+            "<img src='https://my.home-assistant.io/badges/#{@redirect}.svg' />" \
+            "</a>"
         else
-          title = @redirect.gsub(/_/, ' ').titlecase
+          title = @redirect.gsub("_", ' ').titlecase
           icon = ""
 
           if options[:title]
@@ -63,8 +59,9 @@ module Jekyll
 
           if options[:icon]
             raise ArgumentError, "No default icon for redirect #{@redirect}" \
-            if !!options[:icon] == options[:icon] and ! DEFAULT_ICONS.include?(@redirect)
-              icon = !!options[:icon] == options[:icon] ? DEFAULT_ICONS[@redirect] : @options[:icon]
+            if (!options[:icon].nil? == options[:icon]) && !DEFAULT_ICONS.include?(@redirect)
+
+            icon = !options[:icon].nil? == options[:icon] ? DEFAULT_ICONS[@redirect] : @options[:icon]
             icon = "<i class='#{icon}' /> "
           end
 
@@ -74,14 +71,14 @@ module Jekyll
 
       private
 
-      SYNTAX = %r!^([a-z_]+)((\s+\w+(=([\w\.]+?|".+?"))?)*)$!.freeze
-      OPTIONS_REGEX = %r!(?:\w="[^"]*"|\w=[\w\.]+|\w)+!.freeze
+      SYNTAX = /^([a-z_]+)((\s+\w+(=([\w\.]+?|".+?"))?)*)$/
+      OPTIONS_REGEX = /(?:\w="[^"]*"|\w=[\w\.]+|\w)+/
 
       # Default icons when used in in-line text
       DEFAULT_ICONS = {
         "config_flow_start" => "icon-plus-sign",
-        "config" => "icon-cog",
-      }
+        "config" => "icon-cog"
+      }.freeze
 
       # Default title used for in-line text
       DEFAULT_TITLES = {
@@ -103,16 +100,17 @@ module Jekyll
         "info" => "Information",
         "supervisor_info" => "Supervisor Information",
         "supervisor_backups" => "Backups",
-        "integrations" => "Devices & Services",
-      }
+        "integrations" => "Devices & Services"
+      }.freeze
 
       def parse_options(input, context)
         options = {}
         return options if input.empty?
+
         # Split along 3 possible forms: key="value", key=value, or just key
         input.scan(OPTIONS_REGEX) do |opt|
           key, value = opt.split("=")
-          if !value.nil?
+          unless value.nil?
             if value&.include?('"')
               value.delete!('"')
             else

@@ -8,12 +8,11 @@ require 'json'
 def fetch_json(url)
   uri = URI(url)
   response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https',
-                             open_timeout: 10, read_timeout: 30) do |http|
+                                                 open_timeout: 10, read_timeout: 30) do |http|
     http.get(uri.request_uri)
   end
-  unless response.is_a?(Net::HTTPSuccess)
-    raise "HTTP #{response.code} #{response.message} fetching #{url}"
-  end
+  raise "HTTP #{response.code} #{response.message} fetching #{url}" unless response.is_a?(Net::HTTPSuccess)
+
   JSON.parse(response.body)
 rescue SocketError, Errno::ECONNREFUSED, Timeout::Error => e
   raise "Network error fetching #{url}: #{e.message}"
@@ -26,7 +25,7 @@ public_dir      = "public/"   # compiled site directory
 source_dir      = "source"    # source file directory
 server_port     = "4000"      # port for preview server eg. localhost:4000
 
-if (/cygwin|mswin|mingw|bccwin|wince|emx/ =~ RUBY_PLATFORM) != nil
+unless (/cygwin|mswin|mingw|bccwin|wince|emx/ =~ RUBY_PLATFORM).nil?
   puts '## Set the codepage to 65001 for Windows machines'
   `chcp 65001`
 end
@@ -38,6 +37,7 @@ end
 desc "Generate jekyll site"
 task :generate do
   raise "### You haven't set anything up yet. First run `rake install`." unless File.directory?(source_dir)
+
   puts "## Generating Site with Jekyll"
   success = system "compass compile --css-dir #{source_dir}/stylesheets"
   abort("Generating CSS failed") unless success
@@ -63,24 +63,30 @@ end
 desc "Watch the site and regenerate when it changes"
 task :watch do
   raise "### You haven't set anything up yet. First run `rake install`." unless File.directory?(source_dir)
+
   puts "Starting to watch source with Jekyll and Compass."
   system "compass compile --css-dir #{source_dir}/stylesheets" unless File.exist?("#{source_dir}/stylesheets/screen.css")
-  jekyllPid = Process.spawn({"OCTOPRESS_ENV"=>"preview"}, "jekyll build --watch --incremental")
-  compassPid = Process.spawn("compass watch")
+  jekyll_pid = Process.spawn({ "OCTOPRESS_ENV" => "preview" }, "jekyll build --watch --incremental")
+  compass_pid = Process.spawn("compass watch")
 
-  trap("INT") {
-    [jekyllPid, compassPid].each { |pid| Process.kill(9, pid) rescue Errno::ESRCH }
+  trap("INT") do
+    [jekyll_pid, compass_pid].each do |pid|
+      Process.kill(9, pid)
+    rescue StandardError
+      Errno::ESRCH
+    end
     exit 0
-  }
+  end
 
-  [jekyllPid, compassPid].each { |pid| Process.wait(pid) }
+  [jekyll_pid, compass_pid].each { |pid| Process.wait(pid) }
 end
 
 desc "preview the site in a web browser"
-task :preview, :listen do |t, args|
+task :preview, :listen do |_t, args|
   listen_addr = args[:listen] || '127.0.0.1'
   listen_addr = '0.0.0.0' unless ENV['DEVCONTAINER'].nil?
   raise "### You haven't set anything up yet. First run `rake install`." unless File.directory?(source_dir)
+
   puts "Starting to watch source with Jekyll and Compass."
   puts "Now listening on http://localhost:#{server_port}"
   system "compass compile --css-dir #{source_dir}/stylesheets" unless File.exist?("#{source_dir}/stylesheets/screen.css")
@@ -88,50 +94,46 @@ task :preview, :listen do |t, args|
   system "rake version_data"
   system "rake alerts_data"
   system "rake blueprint_exchange_data"
-  jekyllPid = Process.spawn({"OCTOPRESS_ENV"=>"preview"}, "jekyll build -t --watch --incremental")
-  compassPid = Process.spawn("compass watch")
-  rackupPid = Process.spawn("rackup --port #{server_port} --host #{listen_addr}")
+  jekyll_pid = Process.spawn({ "OCTOPRESS_ENV" => "preview" }, "jekyll build -t --watch --incremental")
+  compass_pid = Process.spawn("compass watch")
+  rackup_pid = Process.spawn("rackup --port #{server_port} --host #{listen_addr}")
 
-  trap("INT") {
-    [jekyllPid, compassPid, rackupPid].each { |pid| Process.kill(9, pid) rescue Errno::ESRCH }
+  trap("INT") do
+    [jekyll_pid, compass_pid, rackup_pid].each do |pid|
+      Process.kill(9, pid)
+    rescue StandardError
+      Errno::ESRCH
+    end
     exit 0
-  }
+  end
 
-  [jekyllPid, compassPid, rackupPid].each { |pid| Process.wait(pid) }
+  [jekyll_pid, compass_pid, rackup_pid].each { |pid| Process.wait(pid) }
 end
 
 desc "Download data from analytics.home-assistant.io"
 task :analytics_data do
   remote_data = fetch_json('https://analytics.home-assistant.io/data.json')
-  File.open("#{source_dir}/_data/analytics_data.json", "w") do |file|
-    file.write(JSON.generate(remote_data['current']))
-  end
+  File.write("#{source_dir}/_data/analytics_data.json", JSON.generate(remote_data['current']))
   puts "## analytics_data: OK"
 end
 
 desc "Download data from alerts.home-assistant.io"
 task :alerts_data do
   remote_data = fetch_json('https://alerts.home-assistant.io/alerts.json')
-  File.open("#{source_dir}/_data/alerts_data.json", "w") do |file|
-    file.write(JSON.generate(remote_data))
-  end
+  File.write("#{source_dir}/_data/alerts_data.json", JSON.generate(remote_data))
   puts "## alerts_data: OK"
 end
 
 desc "Download version data from version.home-assistant.io"
 task :version_data do
   remote_data = fetch_json('https://version.home-assistant.io/stable.json')
-  File.open("#{source_dir}/_data/version_data.json", "w") do |file|
-    file.write(JSON.generate(remote_data))
-  end
+  File.write("#{source_dir}/_data/version_data.json", JSON.generate(remote_data))
   puts "## version_data: OK"
 end
 
 desc "Download data from the blueprint exchange @ community.home-assistant.io"
 task :blueprint_exchange_data do
   remote_data = fetch_json('https://community.home-assistant.io/c/blueprints-exchange/53/l/top.json?period=all')
-  File.open("#{source_dir}/_data/blueprint_exchange_data.json", "w") do |file|
-    file.write(JSON.generate(remote_data['topic_list']['topics']))
-  end
+  File.write("#{source_dir}/_data/blueprint_exchange_data.json", JSON.generate(remote_data['topic_list']['topics']))
   puts "## blueprint_exchange_data: OK"
 end
